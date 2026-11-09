@@ -1,0 +1,128 @@
+---
+# Parse OSCAP compliance score from XML using native Ansible modules
+#
+# This calculates TRUE compliance based on pass/(pass+fail) counts
+# NOT the <score> element which includes notapplicable/notchecked
+
+- name: Check if audit XML file exists
+  ansible.builtin.stat:
+    path: "{{ oscap_xml_file }}"
+  register: rhel_cis_oscap_xml_stat
+
+- name: Set default score if XML not found
+  ansible.builtin.set_fact:
+    rhel_cis_oscap_compliance_score: "0.0"
+    rhel_cis_oscap_parse_error: true
+  when: not rhel_cis_oscap_xml_stat.stat.exists
+
+- name: Parse OSCAP results from XML
+  when: rhel_cis_oscap_xml_stat.stat.exists
+  block:
+    - name: Read OpenSCAP XML file
+      ansible.builtin.slurp:
+        src: "{{ oscap_xml_file }}"
+      register: rhel_cis_oscap_xml_content
+
+    - name: Parse XML and extract all rule-result result elements
+      community.general.xml:
+        xmlstring: "{{ rhel_cis_oscap_xml_content.content | b64decode }}"
+        xpath: "//xccdf:rule-result/xccdf:result"
+        namespaces:
+          xccdf: "http://checklists.nist.gov/xccdf/1.2"
+        content: text
+      register: rhel_cis_oscap_results_xml
+      failed_when: false
+
+    - name: Debug OSCAP raw XML matches structure
+      ansible.builtin.debug:
+        msg:
+          - >-
+            Matches count :
+            {{ rhel_cis_oscap_results_xml.matches | default([]) | length }}
+          - >-
+            First element :
+            {{
+              rhel_cis_oscap_results_xml.matches[0]
+              if (
+                rhel_cis_oscap_results_xml.matches | default([]) | length > 0
+              )
+              else 'EMPTY'
+            }}
+          - >-
+            First type :
+            {{
+              (rhel_cis_oscap_results_xml.matches[0] | type_debug)
+              if (
+                rhel_cis_oscap_results_xml.matches | default([]) | length > 0
+              )
+              else 'N/A'
+            }}
+
+    - name: Extract raw result strings into a flat list safely
+      ansible.builtin.set_fact:
+        rhel_cis_oscap_raw_results: >-
+          {%- set results = [] -%}
+          {%- for match in rhel_cis_oscap_results_xml.matches | default([]) -%}
+            {%- if match is string -%}
+              {%- set _ = results.append(match | trim) -%}
+            {%- elif match is mapping -%}
+              {%- if '{}' in match -%}
+                {%- set _ = results.append(match['{}'] | trim) -%}
+              {%- elif 'result' in match -%}
+                {%- set _ = results.append(match['result'] | trim) -%}
+              {%- elif 'text' in match -%}
+                {%- set _ = results.append(match['text'] | trim) -%}
+              {%- elif match.values() | length > 0 -%}
+                {%- set _ = results.append((match.values() | list)[0] | trim) -%}
+              {%- endif -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ results }}
+
+    - name: Count pass/fail/not-applicable/not-checked results
+      ansible.builtin.set_fact:
+        rhel_cis_oscap_pass_count: >-
+          {{ (rhel_cis_raw_results | select('equalto', 'pass') | list | length) | int }}
+        rhel_cis_oscap_fail_count: >-
+          {{ (rhel_cis_raw_results | select('equalto', 'fail') | list | length) | int }}
+        rhel_cis_oscap_notapplicable_count: >-
+          {{ (rhel_cis_raw_results | select('equalto', 'notapplicable') | list | length) | int }}
+        rhel_cis_oscap_notchecked_count: >-
+          {{ (rhel_cis_raw_results | select('equalto', 'notchecked') | list | length) | int }}
+        rhel_cis_oscap_error_count: >-
+          {{ (rhel_cis_raw_results | select('equalto', 'error') | list | length) | int }}
+
+    - name: Calculate total checked rules
+      ansible.builtin.set_fact:
+        rhel_cis_oscap_checked_rules: >-
+          {{ (rhel_cis_oscap_pass_count | int) + (rhel_cis_oscap_fail_count | int) }}
+
+    - name: Calculate compliance score
+      ansible.builtin.set_fact:
+        rhel_cis_oscap_compliance_score: >-
+          {{ ((rhel_cis_oscap_pass_count | int /
+               rhel_cis_oscap_checked_rules | int * 100) | round(2)) | string }}
+      when: (rhel_cis_oscap_checked_rules | int) > 0
+
+    - name: Set zero score if no rules checked
+      ansible.builtin.set_fact:
+        rhel_cis_oscap_compliance_score: "0.0"
+      when: (rhel_cis_oscap_checked_rules | int) == 0
+
+    - name: Build compliance summary string
+      ansible.builtin.set_fact:
+        rhel_cis_oscap_compliance_summary: >-
+          {{ rhel_cis_oscap_pass_count }}/{{ rhel_cis_oscap_checked_rules }} =
+          {{ rhel_cis_oscap_compliance_score }}%
+
+    - name: Display OSCAP parsing results
+      ansible.builtin.debug:
+        msg:
+          - "OSCAP Compliance Calculation:"
+          - "  Pass: {{ rhel_cis_oscap_pass_count }}"
+          - "  Fail: {{ rhel_cis_oscap_fail_count }}"
+          - "  Not Applicable: {{ rhel_cis_oscap_notapplicable_count }}"
+          - "  Not Checked: {{ rhel_cis_oscap_notchecked_count }}"
+          - "  Error: {{ rhel_cis_oscap_error_count }}"
+          - "  Checked Rules: {{ rhel_cis_oscap_checked_rules }}"
+          - "  Compliance: {{ rhel_cis_oscap_compliance_summary }}"

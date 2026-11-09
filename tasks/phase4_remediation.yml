@@ -1,0 +1,57 @@
+---
+# Phase 4: Generate and apply CIS remediations (selective or full)
+
+- name: Apply CIS hardening
+  when: rhel_cis_apply_remediations
+  block:
+    - name: Display remediation mode
+      ansible.builtin.debug:
+        msg:
+          - "========================================================================="
+          - "{% if rhel_cis_selective_mode %}SELECTIVE CIS REMEDIATION{% else %}FULL CIS REMEDIATION{% endif %}"
+          - "========================================================================="
+          - "Applying CIS Profile: {{ rhel_cis_profile_id }}"
+          - "========================================================================="
+
+    - name: Generate full CIS remediation script from SCAP data stream
+      ansible.builtin.command: >
+        oscap xccdf generate fix
+        --fix-type bash
+        --profile {{ rhel_cis_profile_id }}
+        --output "{{ rhel_cis_work_dir }}/remediation_full_{{ rhel_cis_backup_timestamp }}.sh"
+        "{{ rhel_cis_scap_ds_path }}"
+      register: rhel_cis_generate_fix
+      changed_when: true
+
+    - name: Use full remediation script
+      ansible.builtin.copy:
+        src: "{{ rhel_cis_work_dir }}/remediation_full_{{ rhel_cis_backup_timestamp }}.sh"
+        dest: "{{ rhel_cis_work_dir }}/remediation_{{ rhel_cis_backup_timestamp }}.sh"
+        mode: '0700'
+        remote_src: true
+      when: not rhel_cis_selective_mode
+
+    - name: Set remediation script permissions
+      ansible.builtin.file:
+        path: "{{ rhel_cis_work_dir }}/remediation_{{ rhel_cis_backup_timestamp }}.sh"
+        mode: '0700'
+
+    - name: Execute CIS remediation script
+      ansible.builtin.command: "{{ rhel_cis_work_dir }}/remediation_{{ rhel_cis_backup_timestamp }}.sh"
+      args:
+        chdir: "{{ rhel_cis_work_dir }}"
+        executable: /bin/bash
+      register: rhel_cis_remediation_result
+      failed_when: false
+      changed_when: true
+      async: 3600
+      poll: 10
+      environment:
+        PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+    - name: Check if system is still reachable after remediation
+      ansible.builtin.wait_for_connection:
+        delay: 5
+        timeout: 300
+      register: rhel_cis_reconnect_result
+      failed_when: false

@@ -1,0 +1,61 @@
+---
+# Phase 1: Pre-hardening validation
+
+- name: Verify supported RHEL version
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "RedHat"
+      - ansible_facts['distribution_major_version'] | int in [7, 8, 9, 10]
+    fail_msg: >-
+      This role supports RHEL 7, 8, 9, and 10 only.
+      Detected: {{ ansible_facts['distribution'] | default('Unknown') }}
+      {{ ansible_facts['distribution_version'] | default('') }}
+    success_msg: "RHEL {{ ansible_facts['distribution_major_version'] }} detected - proceeding with CIS hardening"
+
+- name: Check if OS-specific variable file exists on controller
+  ansible.builtin.stat:
+    path: "{{ role_path }}/vars/{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_major_version'] }}.yml"
+  delegate_to: localhost
+  register: rhel_os_var_stat
+
+- name: Load OS-specific variables
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/vars/{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_major_version'] }}.yml"
+  when: rhel_os_var_stat.stat.exists
+
+- name: Fail if required variable file is missing
+  ansible.builtin.fail:
+    msg: >-
+      Variable file {{ role_path }}/vars/{{ ansible_facts['distribution'] }}-
+      {{ ansible_facts['distribution_major_version'] }}.yml was not found on the controller!
+  when: not rhel_os_var_stat.stat.exists
+
+- name: Check Python compatibility for native parsing
+  ansible.builtin.include_tasks: check_python_compatibility.yml
+  when: rhel_cis_use_native_parsing | default(true)
+
+- name: Display hardening plan
+  ansible.builtin.debug:
+    msg:
+      - "========================================================================="
+      - "       RHEL {{ ansible_facts['distribution_major_version'] }} CIS BENCHMARK HARDENING WITH ROLLBACK"
+      - "========================================================================="
+      - "Target Host        : {{ inventory_hostname }}"
+      - "RHEL Version       : {{ ansible_facts['distribution_version'] }}"
+      - "Benchmark Profile  : {{ rhel_cis_benchmark_profile | upper }}"
+      - "SCAP Profile ID    : {{ rhel_cis_profile_id }}"
+      - "Auto Backup        : {{ 'Enabled' if (rhel_cis_enable_auto_backup | default(false)) else 'Disabled' }}"
+      - "Auto Rollback      : {{ 'Enabled' if (rhel_cis_auto_rollback_on_failure | default(false)) else 'Disabled' }}"
+      - "Backup Location    : {{ rhel_cis_backup_root }}/{{ rhel_cis_backup_name }}.tar.gz"
+      - "========================================================================="
+
+- name: Verify SCAP content exists
+  ansible.builtin.stat:
+    path: "{{ rhel_cis_scap_ds_path }}"
+  register: rhel_cis_scap_stat
+
+- name: Install SCAP content if missing
+  ansible.builtin.package:
+    name: "{{ scap_packages }}"
+    state: present
+  when: not rhel_cis_scap_stat.stat.exists

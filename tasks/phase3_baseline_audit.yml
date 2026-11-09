@@ -1,0 +1,101 @@
+---
+# Phase 3: Baseline audit (selective or full)
+
+- name: Create CIS working directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0750'
+    owner: root
+    group: root
+  loop:
+    - "{{ rhel_cis_audit_dir }}"
+    - "{{ rhel_cis_work_dir }}"
+
+- name: Check if selective audit is requested
+  ansible.builtin.set_fact:
+    rhel_cis_selective_mode: >-
+      {{
+        (cis_audit_mode | default('full') | lower == 'selective') and
+        (rhel_cis_rules_to_apply is defined) and
+        (rhel_cis_rules_to_apply | string | trim not in ['', '[]', 'none', 'null'])
+      }}
+
+- name: Display audit mode
+  ansible.builtin.debug:
+    msg:
+      - "========================================================================="
+      - >-
+        {% if rhel_cis_selective_mode %}SELECTIVE CIS AUDIT
+        {% else %}FULL CIS AUDIT{% endif %}
+      - "========================================================================="
+      - >-
+        {% if rhel_cis_selective_mode %}
+        Auditing {{ rhel_cis_rules_to_apply | length }} selected rules only
+        {% else %}Auditing all rules from CIS profile {{ rhel_cis_benchmark_profile | upper }}{% endif %}
+      - "========================================================================="
+
+- name: Run baseline CIS audit
+  ansible.builtin.command: >
+    oscap xccdf eval
+    --profile {{ rhel_cis_profile_id }}
+    --results "{{ rhel_cis_audit_dir }}/baseline_{{ rhel_cis_backup_timestamp }}.xml"
+    --results-arf "{{ rhel_cis_audit_dir }}/baseline_{{ rhel_cis_backup_timestamp }}-arf.xml"
+    --report "{{ rhel_cis_audit_dir }}/baseline_{{ rhel_cis_backup_timestamp }}.html"
+    "{{ rhel_cis_scap_ds_path }}"
+  register: rhel_cis_baseline_scan
+  failed_when: false
+  changed_when: false
+
+- name: Check if baseline audit XML exists
+  ansible.builtin.stat:
+    path: "{{ rhel_cis_audit_dir }}/baseline_{{ rhel_cis_backup_timestamp }}.xml"
+  register: rhel_cis_baseline_xml_stat
+
+- name: Parse baseline audit results (native Ansible)
+  when:
+    - rhel_cis_use_native_parsing | default(true)
+    - rhel_cis_baseline_xml_stat.stat.exists
+  block:
+    - name: Parse OSCAP score with native Ansible
+      ansible.builtin.include_tasks: parse_oscap_score.yml
+      vars:
+        oscap_xml_file: "{{ rhel_cis_audit_dir }}/baseline_{{ rhel_cis_backup_timestamp }}.xml"
+
+    - name: Set baseline score variable (native)
+      ansible.builtin.set_fact:
+        rhel_cis_baseline_score:
+          stdout: "{{ rhel_stig_with_rollback_oscap_compliance_score }}"
+        rhel_cis_baseline_score_val: "{{ rhel_stig_with_rollback_oscap_compliance_score }}"
+
+- name: Filter audit results for selected rules (selective mode)
+  when:
+    - rhel_cis_selective_mode
+    - rhel_cis_use_native_parsing | default(true)
+  block:
+    - name: Filter audit with native Ansible
+      ansible.builtin.include_tasks: filter_audit_results.yml
+      vars:
+        oscap_xml_file: "{{ rhel_cis_audit_dir }}/baseline_{{ rhel_cis_backup_timestamp }}.xml"
+        stig_rules_to_filter: "{{ rhel_cis_rules_to_apply }}"
+
+    - name: Map native results to role variable
+      ansible.builtin.set_fact:
+        rhel_cis_audit_filter_data: "{{ oscap_filtered_results }}"
+
+    - name: Save filtered rules that need remediation
+      ansible.builtin.set_fact:
+        rhel_cis_rules_to_remediate: "{{ rhel_cis_audit_filter_data.fail }}"
+
+- name: Set rules to remediate (full mode - all rules)
+  ansible.builtin.set_fact:
+    rhel_cis_rules_to_remediate: []
+  when: not rhel_cis_selective_mode
+
+- name: Display baseline compliance score
+  ansible.builtin.debug:
+    msg:
+      - "Current CIS Benchmark compliance: {{ rhel_cis_baseline_score_val | default('0.0') }}%"
+      - >-
+        {% if rhel_cis_selective_mode %}
+        Rules to remediate: {{ rhel_cis_rules_to_remediate | default([]) | length }}{% endif %}

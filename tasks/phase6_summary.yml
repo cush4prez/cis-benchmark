@@ -1,0 +1,31 @@
+---
+# Phase 6: Final summary and rollback instructions
+
+- name: Normalize score variables for summary display
+  ansible.builtin.set_fact:
+    summary_baseline_score: "{{ rhel_cis_baseline_score_val | default('N/A') }}"
+    summary_post_score: "{{ rhel_cis_post_score_val | default('N/A') }}"
+
+- name: Display hardening summary
+  ansible.builtin.debug:
+    msg:
+      - "========================================================================="
+      - "        RHEL {{ ansible_facts['distribution_major_version'] }} CIS BENCHMARK HARDENING COMPLETE"
+      - "========================================================================="
+      - "Target Host            : {{ inventory_hostname }}"
+      - "RHEL Version           : {{ ansible_facts['distribution_version'] }}"
+      - "CIS Profile Applied    : {{ rhel_cis_benchmark_profile | upper }}"
+      - "Baseline Compliance    : {{ summary_baseline_score }}%"
+      - >-
+        {% if rhel_cis_apply_remediations | default(false) and summary_post_score != 'N/A' %}
+        Post-Hardening Compliance : {{ summary_post_score }}%{% endif %}
+      - >-
+        {% if rhel_cis_apply_remediations | default(false) and summary_post_score != 'N/A' and summary_baseline_score != 'N/A' %}
+        Compliance Improvement : +{{ (summary_post_score | float - summary_baseline_score | float) | round(2) }}%{% endif %}
+      - "-------------------------------------------------------------------------"
+      - "Backup Archive         : {{ rhel_cis_backup_archive | default('Not created') }}"
+      - "Baseline Report        : {{ rhel_cis_audit_dir }}/baseline_{{ rhel_cis_backup_timestamp }}.html"
+      - >-
+        {% if rhel_cis_apply_remediations | default(false) %}Post-Hardening Report   :
+        {{ rhel_cis_audit_dir }}/post_hardening_{{ rhel_cis_backup_timestamp }}.html{% endif %}
+      - "========================================================================="
