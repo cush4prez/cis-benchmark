@@ -1,7 +1,4 @@
 ---
-# Parse OSCAP failures and categorize by severity (CAT I/II/III) using native Ansible
-# Replaces: files/parse_oscap_failures.py
-#
 # Input variables:
 #   - oscap_xml_file: Path to OSCAP XML results
 #

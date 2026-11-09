@@ -1,7 +1,4 @@
 ---
-# Filter OSCAP audit results for specific STIG rules using native Ansible modules
-# Replaces: files/filter_audit_results.py
-#
 # Input variables:
 #   - oscap_xml_file: Path to OSCAP XML results
 #   - stig_rules_to_filter: List of rule IDs to filter

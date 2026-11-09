@@ -1,0 +1,181 @@
+# ==============================================================================
+
+# CIS BENCHMARK TAILORING CONFIGURATION TEMPLATE
+
+# ==============================================================================
+
+# Role: rhel_cis_with_rollback
+
+# Supports: RHEL 7, 8, 9, 10
+
+# Instructions:
+
+# 1. Copy this file to: tailoring/<profile_name>/common.yml
+
+# Example: cp tailoring/example_tailoring.yml tailoring/myorg/common.yml
+
+# 2. Adjust control values to match organizational policy & exceptions.
+
+# 3. For OS-specific variances, create sibling files (e.g., rhel9.yml).
+
+# 4. Invoke during playbook runs:
+
+# -e rhel_cis_tailoring_profile=<profile_name>
+
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+
+# 1. PASSWORD COMPLEXITY & QUALITY (pam_pwquality / login.defs)
+
+# ------------------------------------------------------------------------------
+
+# Minimum password length (CIS recommendation: >= 14)
+
+var_password_pam_minlen: 14
+
+# Minimum number of character classes required (digits, upper, lower, other)
+
+var_password_pam_minclass: 4
+
+# Credit/requirement for individual character classes
+
+# Negative numbers enforce an exact minimum required count
+
+var_password_pam_dcredit: -1   # At least 1 digit
+var_password_pam_ucredit: -1   # At least 1 uppercase letter
+var_password_pam_lcredit: -1   # At least 1 lowercase letter
+var_password_pam_ocredit: -1   # At least 1 special character / symbol
+
+# Difference check: number of characters that must differ from old password
+
+var_password_pam_difok: 8
+
+# Maximum consecutive identical characters permitted
+
+var_password_pam_maxrepeat: 3
+
+# Maximum consecutive characters from the same class permitted
+
+var_password_pam_maxclassrepeat: 4
+
+# Number of previous passwords to remember to prevent reuse (pwhistory / pam_unix)
+
+var_password_pam_unix_remember: 5
+
+# Password expiration limits (login.defs)
+
+var_accounts_maximum_age_login_defs: 90    # Max days a password is valid
+var_accounts_minimum_age_login_defs: 1     # Min days before password can be changed
+var_accounts_password_warn_age_login_defs: 7 # Days warning before expiration
+
+# ------------------------------------------------------------------------------
+
+# 2. ACCOUNT LOCKOUT POLICY (pam_faillock)
+
+# ------------------------------------------------------------------------------
+
+# Consecutive failed login attempts before account is locked
+
+var_accounts_passwords_pam_faillock_deny: 5
+
+# Lockout duration in seconds (900s = 15m; 0 = manual unlock by administrator)
+
+var_accounts_passwords_pam_faillock_unlock_time: 900
+
+# Accumulation window in seconds for tracking consecutive failed attempts
+
+var_accounts_passwords_pam_faillock_fail_interval: 900
+
+# ------------------------------------------------------------------------------
+
+# 3. SESSION TERMINATION & IDLE TIMEOUTS
+
+# ------------------------------------------------------------------------------
+
+# Inactivity timeout for interactive shell sessions (Bash / profile) in seconds
+
+# 900 seconds = 15 minutes
+
+var_accounts_tmout: 900
+
+# SSH daemon client idle timeouts (sshd_config)
+
+# ClientAliveInterval: time in seconds of inactivity before sending keepalive packet
+
+sshd_idle_timeout_value: 300
+
+# ClientAliveCountMax: number of unacknowledged keepalives before disconnecting
+
+var_sshd_set_keepalive: 0
+
+# Maximum authentication attempts permitted per SSH connection
+
+var_sshd_max_auth_tries_value: 4
+
+# ------------------------------------------------------------------------------
+
+# 4. SYSTEM LOGGING & AUDITD POLICIES
+
+# ------------------------------------------------------------------------------
+
+# Maximum single log file size for auditd in megabytes (MB)
+
+var_auditd_max_log_file: 32
+
+# Action to take when an audit log file reaches max size ('rotate', 'keep_logs', etc.)
+
+var_auditd_max_log_file_action: "rotate"
+
+# Number of rotated audit log files to retain on disk
+
+var_auditd_num_logs: 5
+
+# Free disk space percentage threshold to trigger low-space warnings
+
+var_auditd_space_left: 25
+
+# Action triggered when low-space threshold is hit ('email', 'suspend', 'single')
+
+var_auditd_space_left_action: "email"
+
+# Free disk space percentage threshold to trigger admin alert
+
+var_auditd_admin_space_left: 10
+
+# Action triggered when admin space threshold is hit ('single', 'halt', 'suspend')
+
+var_auditd_admin_space_left_action: "single"
+
+# ------------------------------------------------------------------------------
+
+# 5. ACCESS CONTROL, UMASK & CRYPTOGRAPHY
+
+# ------------------------------------------------------------------------------
+
+# Default file creation permission mask for users ('027' or '077')
+
+var_accounts_user_umask: "027"
+
+# Default authselect profile for RHEL 8, 9, and 10 ('sssd' or 'minimal')
+
+var_authselect_profile: "sssd"
+
+# System-wide cryptographic subpolicy (e.g., 'DEFAULT', 'FIPS', 'FUTURE')
+
+var_system_crypto_policy: "DEFAULT"
+
+# Default active firewall zone
+
+firewalld_default_zone: "drop"
+
+# ------------------------------------------------------------------------------
+
+# 6. BANNER WARNING NOTICES (/etc/issue, /etc/issue.net, /etc/motd)
+
+# ------------------------------------------------------------------------------
+
+# Custom text banner for interactive local and remote logins
+
+login_banner_text: >-
+  Authorized users only. All activity may be monitored and reported.
