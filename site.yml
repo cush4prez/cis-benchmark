@@ -16,4 +16,4 @@
       when: cis_audit_mode is defined or stig_audit_mode is defined
 
   roles:
-    - role: rhel_cis
+    - role: "{{ playbook_dir }}/roles/rhel_cis"
