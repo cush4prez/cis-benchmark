@@ -4,8 +4,7 @@
 # This orchestrates all phases of CIS Benchmark hardening
 
 - name: CIS Benchmark hardening
-  hosts: all
-  tasks:
+  block:
     - name: Load organization tailoring variables
       ansible.builtin.include_tasks: load_tailoring.yml
       tags:
