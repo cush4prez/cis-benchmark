@@ -2,7 +2,7 @@
 # Phase 2: Create pre-hardening backup
 
 - name: Create pre-hardening system backup
-  when: cis_benchmark_enable_auto_backup
+  when: rhel_cis_enable_auto_backup | default(true)
   block:
     - name: Create backup directory
       ansible.builtin.file:
@@ -81,45 +81,43 @@
         mode: '0644'
         content: |
           ---
-          cis_benchmark_backup_name: "{{ rhel_cis_backup_name }}"
+          rhel_cis_backup_name: "{{ rhel_cis_backup_name }}"
           created: "{{ ansible_date_time.iso8601 }}"
           hostname: "{{ ansible_hostname }}"
           os_version: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
           purpose: "Pre-CIS hardening backup"
 
     - name: Create compressed backup archive
-      block:
-        - name: Create final archive with community.general.archive
-          community.general.archive:
-            path: "{{ rhel_cis_backup_root }}/backup_{{ rhel_cis_backup_timestamp }}"
-            dest: "{{ rhel_cis_backup_root }}/{{ rhel_cis_backup_name }}.tar.gz"
-            format: gz
-            mode: '0600'
+      community.general.archive:
+        path: "{{ rhel_cis_backup_root }}/backup_{{ rhel_cis_backup_timestamp }}"
+        dest: "{{ rhel_cis_backup_root }}/{{ rhel_cis_backup_name }}.tar.gz"
+        format: gz
+        mode: '0600'
 
-        - name: Set backup archive permissions
-          ansible.builtin.file:
-            path: "{{ rhel_cis_backup_root }}/{{ rhel_cis_backup_name }}.tar.gz"
-            mode: '0600'
-            owner: root
-            group: root
+    - name: Set backup archive permissions
+      ansible.builtin.file:
+        path: "{{ rhel_cis_backup_root }}/{{ rhel_cis_backup_name }}.tar.gz"
+        mode: '0600'
+        owner: root
+        group: root
 
     - name: Register backup location
       ansible.builtin.set_fact:
-        cis_benchmark_backup_archive: "{{ rhel_cis_backup_root }}/{{ rhel_cis_backup_name }}.tar.gz"
+        rhel_cis_backup_archive: "{{ rhel_cis_backup_root }}/{{ rhel_cis_backup_name }}.tar.gz"
 
     - name: Fetch backup to AAP controller for disaster recovery
       ansible.builtin.fetch:
-        src: "{{ cis_benchmark_backup_archive }}"
-        dest: "{{ cis_benchmark_controller_backup_dir }}/{{ inventory_hostname }}/{{ rhel_cis_backup_name }}.tar.gz"
+        src: "{{ rhel_cis_backup_archive }}"
+        dest: "{{ rhel_cis_controller_backup_dir }}/{{ inventory_hostname }}/{{ rhel_cis_backup_name }}.tar.gz"
         flat: true
-      when: cis_benchmark_fetch_to_controller | default(true)
+      when: rhel_cis_fetch_to_controller | default(false)
 
     - name: Display backup confirmation
       ansible.builtin.debug:
         msg:
-          - "✓ Pre-hardening backup created: {{ cis_benchmark_backup_archive }}"
+          - "✓ Pre-hardening backup created: {{ rhel_cis_backup_archive }}"
           - >-
-            {% if cis_benchmark_fetch_to_controller | default(true) %}
+            {% if rhel_cis_fetch_to_controller | default(false) %}
             ✓ Backup copied to controller:
-            {{ cis_benchmark_controller_backup_dir }}/{{ inventory_hostname }}/
+            {{ rhel_cis_controller_backup_dir }}/{{ inventory_hostname }}/
             {% endif %}

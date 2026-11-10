@@ -1,0 +1,27 @@
+---
+# CIS Benchmark defaults for rhel_cis role
+rhel_cis_benchmark_profile: "cis_server_l1"
+rhel_cis_profile_id: "xccdf_org.ssgproject.content_profile_cis_server_l1"
+rhel_cis_scap_ds_path: "/usr/share/xml/scap/ssg/content/ssg-rhel{{ ansible_facts['distribution_major_version'] }}-ds.xml"
+
+# Backup settings
+rhel_cis_enable_auto_backup: true
+rhel_cis_backup_root: "/opt/cis_backups"
+rhel_cis_backup_timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+rhel_cis_backup_name: "pre_cis_{{ ansible_hostname }}_{{ rhel_cis_backup_timestamp }}"
+rhel_cis_backup_archive: "{{ rhel_cis_backup_root }}/{{ rhel_cis_backup_name }}.tar.gz"
+rhel_cis_fetch_to_controller: false
+rhel_cis_controller_backup_dir: "/var/lib/awx/projects/cis_backups"
+
+# Directories
+rhel_cis_audit_dir: "/opt/cis_audit"
+rhel_cis_work_dir: "/opt/cis_work"
+
+# Features & Controls
+rhel_cis_apply_remediations: true
+rhel_cis_rules_to_apply: []
+rhel_cis_auto_rollback_on_failure: true
+rhel_cis_use_native_parsing: true
+rhel_cis_auto_detect_python: true
+rhel_cis_auto_install_deps: true
+rhel_cis_tailoring_profile: ""

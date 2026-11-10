@@ -1,20 +1,19 @@
 ---
-- name: Apply RHEL DISA STIG Hardening with Rollback Protection
+- name: Apply RHEL CIS Benchmark Hardening with Rollback Protection
   hosts: all
   become: true
   gather_facts: true
 
   pre_tasks:
-    # Process AAP survey inputs (for survey-based deployments)
-    - name: Convert survey inputs to role variables (AAP 2.7)
+    - name: Convert survey inputs to role variables (AAP)
       ansible.builtin.set_fact:
-        rhel_cis_stig_rules_to_apply: >-
-          {% if stig_audit_mode is defined and (stig_audit_mode == 'selective') %}
+        rhel_cis_rules_to_apply: >-
+          {% if cis_audit_mode is defined and (cis_audit_mode == 'selective') and stig_rules_input is defined %}
           {{ stig_rules_input.split(',') | map('trim') | select | list }}
           {% else %}
           []
           {% endif %}
-      when: stig_audit_mode is defined
+      when: cis_audit_mode is defined or stig_audit_mode is defined
 
   tasks:
     - name: Include the local RHEL CIS role

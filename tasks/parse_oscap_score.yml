@@ -82,15 +82,15 @@
     - name: Count pass/fail/not-applicable/not-checked results
       ansible.builtin.set_fact:
         rhel_cis_oscap_pass_count: >-
-          {{ (rhel_cis_raw_results | select('equalto', 'pass') | list | length) | int }}
+          {{ (rhel_cis_oscap_raw_results | select('equalto', 'pass') | list | length) | int }}
         rhel_cis_oscap_fail_count: >-
-          {{ (rhel_cis_raw_results | select('equalto', 'fail') | list | length) | int }}
+          {{ (rhel_cis_oscap_raw_results | select('equalto', 'fail') | list | length) | int }}
         rhel_cis_oscap_notapplicable_count: >-
-          {{ (rhel_cis_raw_results | select('equalto', 'notapplicable') | list | length) | int }}
+          {{ (rhel_cis_oscap_raw_results | select('equalto', 'notapplicable') | list | length) | int }}
         rhel_cis_oscap_notchecked_count: >-
-          {{ (rhel_cis_raw_results | select('equalto', 'notchecked') | list | length) | int }}
+          {{ (rhel_cis_oscap_raw_results | select('equalto', 'notchecked') | list | length) | int }}
         rhel_cis_oscap_error_count: >-
-          {{ (rhel_cis_raw_results | select('equalto', 'error') | list | length) | int }}
+          {{ (rhel_cis_oscap_raw_results | select('equalto', 'error') | list | length) | int }}
 
     - name: Calculate total checked rules
       ansible.builtin.set_fact:

@@ -65,8 +65,8 @@
     - name: Set baseline score variable (native)
       ansible.builtin.set_fact:
         rhel_cis_baseline_score:
-          stdout: "{{ rhel_stig_with_rollback_oscap_compliance_score }}"
-        rhel_cis_baseline_score_val: "{{ rhel_stig_with_rollback_oscap_compliance_score }}"
+          stdout: "{{ rhel_cis_oscap_compliance_score }}"
+        rhel_cis_baseline_score_val: "{{ rhel_cis_oscap_compliance_score }}"
 
 - name: Filter audit results for selected rules (selective mode)
   when:
