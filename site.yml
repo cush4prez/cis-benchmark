@@ -8,14 +8,12 @@
     - name: Convert survey inputs to role variables (AAP)
       ansible.builtin.set_fact:
         rhel_cis_rules_to_apply: >-
-          {% if cis_audit_mode is defined and (cis_audit_mode == 'selective') and stig_rules_input is defined %}
+          {% if (cis_audit_mode | default(stig_audit_mode | default('full'))) == 'selective' and (stig_rules_input is defined) %}
           {{ stig_rules_input.split(',') | map('trim') | select | list }}
           {% else %}
           []
           {% endif %}
       when: cis_audit_mode is defined or stig_audit_mode is defined
 
-  tasks:
-    - name: Include the local RHEL CIS role
-      ansible.builtin.include_role:
-        name: rhel_cis
+  roles:
+    - role: rhel_cis
