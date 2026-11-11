@@ -66,7 +66,7 @@
     msg:
       - "WARNING: lxml library not available"
       - "Falling back to Python scripts for XML parsing"
-      - "To enable native parsing: dnf install {{ rhel_stig_with_rollback_lxml_pkg }}"
+      - "To enable native parsing: dnf install {{ rhel_cis_lxml_pkg }}"
   when: not rhel_cis_native_parsing_available
 
 - name: Display parsing method
