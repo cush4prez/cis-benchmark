@@ -14,7 +14,7 @@ rhel_cis_benchmark_profile: "cis_server_l1"
 rhel_cis_profile_map:
   cis: "xccdf_org.ssgproject.content_profile_cis"
   cis_server_l1: "xccdf_org.ssgproject.content_profile_cis_server_l1"
-  cis_server_l2: "xccdf_org.ssgproject.content_profile_cis_server_l2"
+  cis_server_l2: "xccdf_org.ssgproject.content_profile_cis"
   cis_workstation_l1: "xccdf_org.ssgproject.content_profile_cis_workstation_l1"
   cis_workstation_l2: "xccdf_org.ssgproject.content_profile_cis_workstation_l2"
 
